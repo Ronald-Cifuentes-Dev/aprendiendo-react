@@ -26,6 +26,26 @@ const dialogueSchema = {
   required: ['understood', 'goalCompleted', 'reply'],
 };
 
+export function GET() {
+  const sample = missions[0];
+  const localCheck = evaluateLocally(sample, 'Sure, I can get some wood.', [], false);
+  const levels = [...new Set(missions.map((mission) => mission.level))];
+
+  return NextResponse.json({
+    status: 'ok',
+    route: 'dialogue',
+    mode: process.env.OPENAI_API_KEY ? 'ai-with-local-fallback' : 'local',
+    model: process.env.OPENAI_DIALOGUE_MODEL || 'gpt-5.6-luna',
+    missions: missions.length,
+    levels,
+    localEngine: {
+      understood: localCheck.understood,
+      goalCompleted: localCheck.goalCompleted,
+      reply: localCheck.reply,
+    },
+  });
+}
+
 export async function POST(request: Request) {
   let body: RequestBody;
   try {
