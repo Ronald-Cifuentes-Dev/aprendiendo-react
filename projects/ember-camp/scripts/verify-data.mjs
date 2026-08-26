@@ -37,9 +37,11 @@ for (const contract of ['gpt-realtime-2.1', 'semantic_vad', 'interrupt_response'
 }
 
 const geminiRoute = fs.readFileSync(path.join(root, 'app/api/gemini-token/route.ts'), 'utf8');
-for (const contract of ['gemini-3.1-flash-live-preview', 'auth_tokens', 'liveConnectConstraints', 'GEMINI_API_KEY']) {
+for (const contract of ['gemini-3.1-flash-live-preview', 'auth_tokens', 'newSessionExpireTime', 'GEMINI_API_KEY']) {
   if (!geminiRoute.includes(contract)) throw new Error(`Gemini free-live contract missing: ${contract}`);
 }
+if (geminiRoute.includes('liveConnectConstraints')) throw new Error('Obsolete Gemini auth token field liveConnectConstraints must not be reintroduced.');
+
 const realtimeClient = fs.readFileSync(path.join(root, 'components/RealtimeVoice.tsx'), 'utf8');
 for (const contract of ['BidiGenerateContentConstrained', 'START_OF_ACTIVITY_INTERRUPTS', 'audio/pcm;rate=16000', 'Gemini Live · free tier']) {
   if (!realtimeClient.includes(contract)) throw new Error(`Gemini browser voice contract missing: ${contract}`);
