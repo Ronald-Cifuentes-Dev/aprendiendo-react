@@ -1,0 +1,9 @@
+{
+  "name": "Ember Camp — Conversational English Survival",
+  "short_name": "Ember Camp",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e9eee2",
+  "theme_color": "#274d37",
+  "icons": [{"src":"/assets/ui/icon.svg","sizes":"192x192","type":"image/svg+xml"}]
+}
