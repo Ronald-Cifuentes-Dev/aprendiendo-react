@@ -19,8 +19,9 @@ type Capability = {
   transport: string;
 };
 
-function phaseLabel(phase: Phase, name: string) {
+function phaseLabel(phase: Phase, name: string, muted: boolean) {
   if (phase === 'connecting') return 'Connecting…';
+  if (muted && ['listening', 'thinking', 'speaking'].includes(phase)) return 'Microphone muted';
   if (phase === 'listening') return 'Listening — speak naturally';
   if (phase === 'thinking') return `${name} is thinking…`;
   if (phase === 'speaking') return `${name} is talking — you can interrupt`;
@@ -45,7 +46,7 @@ export default function RealtimeVoice({ mission, onSceneResolved, onNpcTranscrip
     if (dc?.readyState === 'open') dc.send(JSON.stringify(event));
   }, []);
 
-  const stop = useCallback(() => {
+  const closeTransport = useCallback(() => {
     startedRef.current = false;
     dcRef.current?.close();
     dcRef.current = null;
@@ -57,10 +58,15 @@ export default function RealtimeVoice({ mission, onSceneResolved, onNpcTranscrip
       audioRef.current.pause();
       audioRef.current.srcObject = null;
     }
-    setMuted(false);
-    setPhase('idle');
     onLiveChange?.(false);
   }, [onLiveChange]);
+
+  const stop = useCallback(() => {
+    closeTransport();
+    setMuted(false);
+    setError('');
+    setPhase('idle');
+  }, [closeTransport]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,7 +85,7 @@ export default function RealtimeVoice({ mission, onSceneResolved, onNpcTranscrip
     stop();
   }, [mission.id, stop]);
 
-  useEffect(() => () => stop(), [stop]);
+  useEffect(() => () => closeTransport(), [closeTransport]);
 
   const handleRealtimeEvent = useCallback((raw: MessageEvent<string>) => {
     let event: any;
@@ -153,13 +159,15 @@ export default function RealtimeVoice({ mission, onSceneResolved, onNpcTranscrip
       }
       case 'error':
         console.error('[realtime-client]', event.error || event);
+        closeTransport();
+        setMuted(false);
         setError(event.error?.message || 'The realtime voice session hit an error.');
         setPhase('error');
         break;
       default:
         break;
     }
-  }, [onNpcTranscript, onSceneResolved, sendEvent]);
+  }, [closeTransport, onNpcTranscript, onSceneResolved, sendEvent]);
 
   const start = useCallback(async () => {
     if (startedRef.current) return;
@@ -179,7 +187,9 @@ export default function RealtimeVoice({ mission, onSceneResolved, onNpcTranscrip
           setPhase('listening');
           onLiveChange?.(true);
         }
-        if (['failed', 'closed', 'disconnected'].includes(pc.connectionState) && startedRef.current) {
+        if (['failed', 'disconnected'].includes(pc.connectionState) && startedRef.current) {
+          closeTransport();
+          setMuted(false);
           setError('The voice connection was interrupted.');
           setPhase('error');
         }
@@ -235,18 +245,12 @@ export default function RealtimeVoice({ mission, onSceneResolved, onNpcTranscrip
       await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Advanced voice could not start.';
+      closeTransport();
+      setMuted(false);
       setError(message);
-      startedRef.current = false;
-      dcRef.current?.close();
-      dcRef.current = null;
-      pcRef.current?.close();
-      pcRef.current = null;
-      localStreamRef.current?.getTracks().forEach((track) => track.stop());
-      localStreamRef.current = null;
       setPhase('error');
-      onLiveChange?.(false);
     }
-  }, [capability?.available, handleRealtimeEvent, mission.characterName, mission.id, onLiveChange, sendEvent]);
+  }, [capability?.available, closeTransport, handleRealtimeEvent, mission.characterName, mission.id, onLiveChange, sendEvent]);
 
   function toggleMute() {
     const track = localStreamRef.current?.getAudioTracks()[0];
@@ -254,14 +258,14 @@ export default function RealtimeVoice({ mission, onSceneResolved, onNpcTranscrip
     const nextMuted = !muted;
     track.enabled = !nextMuted;
     setMuted(nextMuted);
-    setPhase(nextMuted ? 'idle' : 'listening');
   }
 
   const live = ['listening', 'thinking', 'speaking'].includes(phase);
+  const startDisabled = capability === null || capability.available === false;
 
   return (
     <div className="voice-stage">
-      <audio ref={audioRef} autoPlay playsInline className="remote-audio" />
+      <audio ref={audioRef} autoPlay className="remote-audio" />
       <div className={`voice-orb ${phase}`} aria-hidden="true">
         <span className="voice-ring ring-one" />
         <span className="voice-ring ring-two" />
@@ -270,15 +274,16 @@ export default function RealtimeVoice({ mission, onSceneResolved, onNpcTranscrip
       <div className="voice-copy">
         <div className="live-line">
           <span className={`live-dot ${live ? 'on' : ''}`} />
-          <strong>{phaseLabel(phase, mission.characterName)}</strong>
+          <strong>{phaseLabel(phase, mission.characterName, muted)}</strong>
         </div>
         <p>{live ? `Just talk to ${mission.characterName}. There are no answer buttons and you can interrupt at any time.` : 'One conversation. Your voice, their voice, no scripted answer path.'}</p>
       </div>
 
       <div className="voice-controls">
         {!live && phase !== 'connecting' ? (
-          <button type="button" className="voice-primary" onClick={() => void start()} disabled={capability === null}>
-            <span>🎙️</span> {capability === null ? 'Checking voice…' : `Talk with ${mission.characterName}`}
+          <button type="button" className="voice-primary" onClick={() => void start()} disabled={startDisabled}>
+            <span>🎙️</span>{' '}
+            {capability === null ? 'Checking voice…' : capability.available ? `Talk with ${mission.characterName}` : 'Advanced voice needs setup'}
           </button>
         ) : (
           <>
