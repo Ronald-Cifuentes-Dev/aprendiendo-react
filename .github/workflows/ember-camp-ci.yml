@@ -6,6 +6,11 @@ on:
     paths:
       - 'projects/ember-camp/**'
       - '.github/workflows/ember-camp-ci.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'projects/ember-camp/**'
+      - '.github/workflows/ember-camp-ci.yml'
   workflow_dispatch:
 
 permissions:
