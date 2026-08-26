@@ -26,6 +26,10 @@ export async function POST() {
     return NextResponse.json({ error: 'GEMINI_API_KEY is not configured.' }, { status: 503 });
   }
 
+  // Keep the permanent key server-side and issue a short-lived, single-use token.
+  // We intentionally do NOT embed bidiGenerateContentSetup in the token. With the
+  // current Gemini API, omitting it means the browser's first WebSocket `setup`
+  // message remains authoritative for voice, tools, VAD and character instructions.
   const expireTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   const newSessionExpireTime = new Date(Date.now() + 60 * 1000).toISOString();
 
@@ -40,13 +44,6 @@ export async function POST() {
         uses: 1,
         expireTime,
         newSessionExpireTime,
-        liveConnectConstraints: {
-          model: `models/${model}`,
-          config: {
-            responseModalities: ['AUDIO'],
-            sessionResumption: {},
-          },
-        },
       }),
       cache: 'no-store',
     });
