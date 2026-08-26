@@ -4,10 +4,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const required = [
-  'app/layout.tsx','app/page.tsx','app/globals.css','app/api/dialogue/route.ts','app/api/tts/route.ts',
-  'components/GameClient.tsx','components/WorldMap.tsx','data/missions.ts','data/zones.ts','data/cefr.ts',
-  'lib/types.ts','lib/localDialogue.ts','lib/dialoguePrompt.ts','lib/openai.ts','public/manifest.webmanifest',
-  'public/assets/ui/logo.svg','public/assets/ui/icon.svg'
+  'app/layout.tsx','app/page.tsx','app/globals.css','app/voice.css',
+  'app/api/dialogue/route.ts','app/api/tts/route.ts','app/api/realtime/route.ts',
+  'components/GameClient.tsx','components/RealtimeVoice.tsx','components/WorldMap.tsx',
+  'data/missions.ts','data/zones.ts','data/cefr.ts',
+  'lib/types.ts','lib/localDialogue.ts','lib/dialoguePrompt.ts','lib/realtimePrompt.ts','lib/openai.ts',
+  'public/manifest.webmanifest','public/assets/ui/logo.svg','public/assets/ui/icon.svg'
 ];
 for (const file of required) {
   const full = path.join(root, file);
@@ -26,4 +28,10 @@ for (const level of ['A1','A2','B1','B2','C1','C2']) {
   const count = (missionSource.match(new RegExp(`\\"level\\":\\"${level}\\"`, 'g')) || []).length;
   if (count !== 3) throw new Error(`${level} must contain 3 missions; found ${count}`);
 }
-console.log('verify:data passed — 18 missions, 6 CEFR levels, 9 zones, 7 portraits, all required files present.');
+const gameClient = fs.readFileSync(path.join(root, 'components/GameClient.tsx'), 'utf8');
+if (gameClient.includes('mission.quickReplies.map')) throw new Error('Mechanical quick-reply UI must not return to the immersive game client.');
+const realtimeRoute = fs.readFileSync(path.join(root, 'app/api/realtime/route.ts'), 'utf8');
+for (const contract of ['gpt-realtime-2.1', 'semantic_vad', 'interrupt_response', 'complete_scene']) {
+  if (!realtimeRoute.includes(contract)) throw new Error(`Realtime voice contract missing: ${contract}`);
+}
+console.log('verify:data passed — 18 missions, immersive UI, Realtime WebRTC contract, 9 zones, 7 portraits, all required files present.');

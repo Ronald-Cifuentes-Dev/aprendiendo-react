@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './voice.css';
 
 export const metadata: Metadata = {
-  title: 'Ember Camp — Conversational English Survival',
-  description: 'Learn conversational English from A1 to C2 through survival missions and comprehensible input.',
+  title: 'Ember Camp — Live Conversational English',
+  description: 'Learn conversational English from A1 to C2 by living through voice-first survival scenes.',
   manifest: '/manifest.webmanifest',
 };
 
