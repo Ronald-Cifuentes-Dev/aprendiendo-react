@@ -43,15 +43,49 @@ async function probeLive(token: string, model: string): Promise<ProbeResult> {
 
     const timeout = setTimeout(() => {
       finish(new Error(`Live probe timed out (opened=${state.websocketOpened}, setup=${state.setupComplete}, audio=${state.audioReceived}, turn=${state.turnComplete})`));
-    }, 15000);
+    }, 20000);
 
     ws.addEventListener('open', () => {
       state.websocketOpened = true;
       ws.send(JSON.stringify({
         setup: {
           model: `models/${model}`,
-          generationConfig: { responseModalities: ['AUDIO'] },
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: 'Sulafat' },
+              },
+            },
+          },
+          systemInstruction: {
+            parts: [{ text: 'You are Maya in a survival camp. Speak natural conversational English. Keep this diagnostic reply very short.' }],
+          },
+          tools: [{
+            functionDeclarations: [{
+              name: 'complete_scene',
+              description: 'Mark a story scene resolved when appropriate.',
+              parameters: {
+                type: 'OBJECT',
+                properties: { reason: { type: 'STRING' } },
+                required: ['reason'],
+              },
+            }],
+          }],
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              disabled: false,
+              startOfSpeechSensitivity: 'START_SENSITIVITY_HIGH',
+              endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH',
+              prefixPaddingMs: 80,
+              silenceDurationMs: 500,
+            },
+            activityHandling: 'START_OF_ACTIVITY_INTERRUPTS',
+          },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
           sessionResumption: {},
+          contextWindowCompression: { slidingWindow: {} },
         },
       }));
     });
@@ -97,15 +131,7 @@ export async function GET() {
     const tokenResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/auth_tokens', {
       method: 'POST',
       headers: { 'x-goog-api-key': apiKey, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        uses: 1,
-        expireTime,
-        newSessionExpireTime,
-        liveConnectConstraints: {
-          model: `models/${model}`,
-          config: { sessionResumption: {}, responseModalities: ['AUDIO'] },
-        },
-      }),
+      body: JSON.stringify({ uses: 1, expireTime, newSessionExpireTime }),
       cache: 'no-store',
     });
 
