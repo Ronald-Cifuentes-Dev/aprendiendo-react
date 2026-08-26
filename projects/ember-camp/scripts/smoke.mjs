@@ -18,10 +18,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function stopServer() {
   if (child.exitCode !== null) return;
   child.kill('SIGTERM');
-  await Promise.race([
-    new Promise((resolve) => child.once('exit', resolve)),
-    sleep(1500),
-  ]);
+  await Promise.race([new Promise((resolve) => child.once('exit', resolve)), sleep(1500)]);
   if (child.exitCode === null) child.kill('SIGKILL');
 }
 
@@ -50,10 +47,16 @@ try {
   const dialogueJson = await dialogue.json();
   if (!dialogue.ok || !dialogueJson.reply || !dialogueJson.goalCompleted) throw new Error(`Dialogue smoke test failed: ${JSON.stringify(dialogueJson)}`);
 
+  const gemini = await fetch(`http://127.0.0.1:${port}/api/gemini-token`);
+  const geminiJson = await gemini.json();
+  if (!gemini.ok || geminiJson.model !== 'gemini-3.1-flash-live-preview' || geminiJson.transport !== 'websocket' || geminiJson.freeTierCapable !== true) {
+    throw new Error(`Gemini free-live capability contract failed: ${JSON.stringify(geminiJson)}`);
+  }
+
   const realtime = await fetch(`http://127.0.0.1:${port}/api/realtime`);
   const realtimeJson = await realtime.json();
   if (!realtime.ok || realtimeJson.model !== 'gpt-realtime-2.1' || realtimeJson.transport !== 'webrtc' || realtimeJson.turnDetection !== 'semantic_vad') {
-    throw new Error(`Realtime capability contract failed: ${JSON.stringify(realtimeJson)}`);
+    throw new Error(`OpenAI fallback capability contract failed: ${JSON.stringify(realtimeJson)}`);
   }
 
   const tts = await fetch(`http://127.0.0.1:${port}/api/tts`, {
@@ -63,7 +66,7 @@ try {
   });
   if (![200, 503].includes(tts.status)) throw new Error(`TTS contract failed with ${tts.status}`);
 
-  console.log('smoke passed — client shell, immersive dialogue fallback, Realtime capability, and TTS fallback contracts are functional.');
+  console.log('smoke passed — client shell, immersive dialogue fallback, Gemini Live free-tier capability, OpenAI fallback, and TTS contracts are functional.');
 } finally {
   await stopServer();
 }

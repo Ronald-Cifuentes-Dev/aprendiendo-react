@@ -13,9 +13,27 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Advanced voice — OpenAI Realtime
+## Preferred live voice — Gemini 3.1 Flash Live Free Tier
 
-The primary conversation mode uses the OpenAI Realtime API over browser WebRTC.
+The preferred provider is Google Gemini Live because `gemini-3.1-flash-live-preview` currently has a free API tier for audio input/output (subject to Google's quotas and free-tier terms).
+
+```env
+GEMINI_API_KEY=...
+GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview
+```
+
+Security architecture:
+
+1. `GEMINI_API_KEY` stays on the Next.js server.
+2. `/api/gemini-token` exchanges it for a short-lived single-session ephemeral token.
+3. The browser connects directly to Gemini Live through the constrained `v1beta` WebSocket endpoint.
+4. The permanent API key is never embedded in client JavaScript.
+
+Gemini sessions use native audio-in/audio-out, automatic activity detection, interruption on user speech, 16 kHz PCM microphone input, 24 kHz PCM model audio, input/output transcription, function calling, session resumption support, and character-specific voices.
+
+## Optional premium fallback — OpenAI Realtime
+
+If Gemini is not configured but OpenAI is, Ember Camp automatically falls back to OpenAI Realtime over browser WebRTC.
 
 ```env
 OPENAI_API_KEY=...
@@ -24,27 +42,21 @@ OPENAI_DIALOGUE_MODEL=gpt-5.6-luna
 OPENAI_TTS_MODEL=gpt-4o-mini-tts
 ```
 
-The browser never receives `OPENAI_API_KEY`. It creates an SDP offer and sends it to `/api/realtime`; the server creates the OpenAI Realtime call and returns the SDP answer.
+OpenAI sessions use `semantic_vad`, interruption/barge-in, and the same invisible `complete_scene` / `wait_for_user` story tools.
 
-Realtime sessions use:
+## Provider priority
 
-- `gpt-realtime-2.1`
-- WebRTC audio in/out
-- `semantic_vad` turn detection
-- `interrupt_response: true` for barge-in/interruption
-- `marin` and `cedar` character voices
-- a hidden `complete_scene` function tool so story progress is separated from the conversation surface
-- a `wait_for_user` tool so silence/background noise does not force artificial chatter
+At runtime the client chooses:
 
-Characters are prompted as people in the world, not tutors. They should react to unexpected questions, remember prior turns, disagree, joke, volunteer details, and accept imperfect grammar whenever the meaning is clear. They do not expose CEFR levels, answer keys, objectives, scoring, or correction unless the learner explicitly asks.
+1. Gemini Live when `GEMINI_API_KEY` is configured.
+2. OpenAI Realtime when `OPENAI_API_KEY` is configured.
+3. Typed immersive conversation when neither live provider is configured.
 
-## Fallbacks
+Characters are prompted as people in the world, not tutors. They react to unexpected questions, remember prior turns, disagree, joke, volunteer details, and accept imperfect grammar whenever the meaning is clear. They do not expose CEFR levels, answer keys, objectives, scoring, or correction unless the learner explicitly asks.
 
-The full map/campaign remains usable without an API key:
+## Important free-tier note
 
-- typing uses `/api/dialogue` and the deterministic local engine if AI is unavailable;
-- replaying typed NPC lines uses `/api/tts` when available and browser speech as a final fallback;
-- advanced full-duplex voice itself requires `OPENAI_API_KEY`, because WebRTC Realtime sessions must be created by an authenticated server endpoint.
+Google's free Gemini API tier has usage quotas and its terms currently state that free-tier content may be used to improve Google products. It is free of API usage charges within those limits, not an unlimited SLA. If the quota is exhausted, the app keeps the typed fallback available.
 
 ## Verification
 
@@ -53,9 +65,9 @@ npm run verify
 npm run verify:full
 ```
 
-`verify:data` now fails if mechanical quick-reply rendering is reintroduced or if the Realtime contract loses `gpt-realtime-2.1`, `semantic_vad`, interruption support, or the invisible scene-completion tool.
+`verify:data` fails if mechanical quick-reply rendering is reintroduced or if either live voice contract disappears.
 
-`verify:full` starts the production server and exercises `/`, `/api/dialogue`, `/api/realtime`, and `/api/tts`.
+`verify:full` starts the production server and exercises `/`, `/api/dialogue`, `/api/gemini-token`, `/api/realtime`, and `/api/tts`.
 
 ## Vercel
 
@@ -63,4 +75,4 @@ Root Directory: `projects/ember-camp`
 
 Keep native Next.js framework defaults. Do not add legacy `builds`/catch-all `routes` configuration.
 
-For real advanced voice in production, set `OPENAI_API_KEY` in Vercel for the production/preview environments. `OPENAI_REALTIME_MODEL` is optional; it defaults to `gpt-realtime-2.1`.
+For the free live provider, create a Gemini API key in Google AI Studio and set `GEMINI_API_KEY` in Vercel for Production/Preview. `GEMINI_LIVE_MODEL` is optional and defaults to `gemini-3.1-flash-live-preview`.
