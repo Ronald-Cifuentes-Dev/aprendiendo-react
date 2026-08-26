@@ -16,6 +16,18 @@ const voices: Record<string, { voice: string; instructions: string }> = {
 
 type Body = { text?: string; characterId?: string; speed?: number };
 
+export function GET() {
+  return NextResponse.json({
+    status: 'ok',
+    route: 'tts',
+    neuralConfigured: Boolean(process.env.OPENAI_API_KEY),
+    model: process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
+    builtInVoices: ['marin', 'cedar'],
+    fallback: 'browser-speech-synthesis',
+    maxInputCharacters: 4096,
+  });
+}
+
 export async function POST(request: Request) {
   let body: Body;
   try { body = await request.json(); } catch {
