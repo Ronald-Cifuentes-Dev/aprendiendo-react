@@ -24,7 +24,9 @@ try {
 
   const home = await fetch(`http://127.0.0.1:${port}/`);
   const html = await home.text();
-  if (!home.ok || !html.includes('EMBER CAMP')) throw new Error('Home page smoke test failed');
+  if (!home.ok || (!html.includes('Loading Ember Camp') && !html.includes('Live Conversational English'))) {
+    throw new Error(`Home page smoke test failed. status=${home.status}`);
+  }
 
   const dialogue = await fetch(`http://127.0.0.1:${port}/api/dialogue`, {
     method: 'POST',
@@ -47,7 +49,7 @@ try {
   });
   if (![200, 503].includes(tts.status)) throw new Error(`TTS contract failed with ${tts.status}`);
 
-  console.log('smoke passed — home, immersive dialogue fallback, Realtime capability, and TTS fallback contracts are functional.');
+  console.log('smoke passed — client shell, immersive dialogue fallback, Realtime capability, and TTS fallback contracts are functional.');
 } finally {
   child.kill('SIGTERM');
 }
